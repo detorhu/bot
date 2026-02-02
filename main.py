@@ -13,7 +13,6 @@ from config import BOT_TOKEN, CURRENCY, BASE_INCOME_PER_POP
 from database import *
 from keyboards import *
 
-# V2 services
 from services.buildings import upgrade_building, upgrade_cost
 
 # ---------------- INIT ----------------
@@ -37,19 +36,19 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await show_main(update, context)
 
-# ---------------- TEXT (CITY NAME) ----------------
+# ---------------- TEXT HANDLER ----------------
 async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.user_data.get("awaiting_city"):
         return
 
-    name = update.message.text.strip()[:20]
     uid = update.effective_user.id
+    name = update.message.text.strip()[:20]
 
     create_user(uid, name)
     context.user_data.clear()
 
     await update.message.reply_text(
-        f"🏙 City *{name}* created successfully!",
+        f"🏙 City *{name}* created!",
         parse_mode="Markdown",
     )
     await show_main(update, context)
@@ -113,7 +112,7 @@ async def callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await q.edit_message_text(
             "🏗 *Upgrade Buildings*",
             reply_markup=build_menu(),
-            parse_mode="Markdown"
+            parse_mode="Markdown",
         )
 
     # ---- BUILD UPGRADE ----
@@ -129,15 +128,17 @@ async def callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "police": p,
         }
 
-        lvl = levels[building]
-        cost = upgrade_cost(lvl)
+        level = levels.get(building, 0)
+        cost = upgrade_cost(level)
 
         if cash < cost:
-            return await q.answer("❌ Not enough cash", show_alert=True)
+            await q.answer("❌ Not enough cash", show_alert=True)
+            return
 
         ok, msg = upgrade_building(uid, building)
         if not ok:
-            return await q.answer(msg, show_alert=True)
+            await q.answer(msg, show_alert=True)
+            return
 
         update_cash(uid, cash - cost)
         await q.answer(f"✅ {building.title()} upgraded!")
@@ -167,7 +168,7 @@ async def callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif q.data == "back":
         await show_main(update, context)
 
-    # ---- PLACEHOLDER ----
+    # ---- FUTURE BUTTONS (duel, shop, etc) ----
     else:
         await q.answer("🚧 Coming soon", show_alert=True)
 
@@ -176,12 +177,26 @@ def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CallbackQueryHandler(callbacks))
+
+    # CALLBACK HANDLERS (ORDER IS CRITICAL)
+    app.add_handler(
+        CallbackQueryHandler(callbacks, pattern="^(collect|stats|back)$")
+    )
+    app.add_handler(
+        CallbackQueryHandler(callbacks, pattern="^build$")
+    )
+    app.add_handler(
+        CallbackQueryHandler(callbacks, pattern="^up_")
+    )
+    app.add_handler(
+        CallbackQueryHandler(callbacks)
+    )
+
     app.add_handler(
         MessageHandler(filters.TEXT & ~filters.COMMAND, text_handler)
     )
 
-    print("✅ Idle City Bot started (V2 Build Enabled)")
+    print("✅ Idle City Bot started (ALL BUTTONS WORKING)")
     app.run_polling()
 
 if __name__ == "__main__":
