@@ -13,6 +13,9 @@ from config import BOT_TOKEN, CURRENCY, BASE_INCOME_PER_POP
 from database import *
 from keyboards import *
 
+# V2 services
+from services.buildings import upgrade_building, upgrade_cost
+
 # ---------------- INIT ----------------
 init_db()
 
@@ -99,11 +102,45 @@ async def callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         income = calc_income(pop, school) * hours
 
-        # ✅ FIXED
         update_cash(uid, cash + income)
         update_last_collect(uid, now)
 
         await q.answer(f"+{CURRENCY}{income} collected!")
+        await show_main(update, context)
+
+    # ---- BUILD MENU ----
+    elif q.data == "build":
+        await q.edit_message_text(
+            "🏗 *Upgrade Buildings*",
+            reply_markup=build_menu(),
+            parse_mode="Markdown"
+        )
+
+    # ---- BUILD UPGRADE ----
+    elif q.data.startswith("up_"):
+        building = q.data.replace("up_", "")
+        cash, _ = get_user(uid)
+
+        h, s, ho, p = get_buildings(uid)
+        levels = {
+            "houses": h,
+            "school": s,
+            "hospital": ho,
+            "police": p,
+        }
+
+        lvl = levels[building]
+        cost = upgrade_cost(lvl)
+
+        if cash < cost:
+            return await q.answer("❌ Not enough cash", show_alert=True)
+
+        ok, msg = upgrade_building(uid, building)
+        if not ok:
+            return await q.answer(msg, show_alert=True)
+
+        update_cash(uid, cash - cost)
+        await q.answer(f"✅ {building.title()} upgraded!")
         await show_main(update, context)
 
     # ---- STATS ----
@@ -138,14 +175,13 @@ async def callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
-    # ONLY REQUIRED HANDLERS (V1)
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(callbacks))
     app.add_handler(
         MessageHandler(filters.TEXT & ~filters.COMMAND, text_handler)
     )
 
-    print("✅ Idle City Bot started")
+    print("✅ Idle City Bot started (V2 Build Enabled)")
     app.run_polling()
 
 if __name__ == "__main__":
