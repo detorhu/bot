@@ -14,9 +14,12 @@ from database import *
 from keyboards import *
 
 from services.buildings import upgrade_building, upgrade_cost
+from services.shop import get_shop_items
+from database import has_item, add_item, init_inventory
 
 # ---------------- INIT ----------------
 init_db()
+init_inventory()
 
 # ---------------- HELPERS ----------------
 def calc_income(population: int, school_lvl: int) -> int:
@@ -93,14 +96,12 @@ async def callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
         hours = (now - last) // 3600
 
         if hours <= 0:
-            await q.answer("⏳ Nothing to collect yet", show_alert=True)
-            return
+            return await q.answer("⏳ Nothing to collect yet", show_alert=True)
 
         _, pop, _ = get_city(uid)
         _, school, _, _ = get_buildings(uid)
 
         income = calc_income(pop, school) * hours
-
         update_cash(uid, cash + income)
         update_last_collect(uid, now)
 
@@ -121,24 +122,16 @@ async def callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
         cash, _ = get_user(uid)
 
         h, s, ho, p = get_buildings(uid)
-        levels = {
-            "houses": h,
-            "school": s,
-            "hospital": ho,
-            "police": p,
-        }
-
+        levels = {"houses": h, "school": s, "hospital": ho, "police": p}
         level = levels.get(building, 0)
         cost = upgrade_cost(level)
 
         if cash < cost:
-            await q.answer("❌ Not enough cash", show_alert=True)
-            return
+            return await q.answer("❌ Not enough cash", show_alert=True)
 
         ok, msg = upgrade_building(uid, building)
         if not ok:
-            await q.answer(msg, show_alert=True)
-            return
+            return await q.answer(msg, show_alert=True)
 
         update_cash(uid, cash - cost)
         await q.answer(f"✅ {building.title()} upgraded!")
@@ -164,11 +157,41 @@ async def callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text, reply_markup=back_menu(), parse_mode="Markdown"
         )
 
+    # ---- SHOP MENU ----
+    elif q.data == "shop":
+        await q.edit_message_text(
+            "🛒 *Shop*\n\nBuy items using cash:",
+            reply_markup=shop_menu(),
+            parse_mode="Markdown",
+        )
+
+    # ---- BUY ITEM ----
+    elif q.data.startswith("buy_"):
+        item_key = q.data.replace("buy_", "")
+        shop = get_shop_items()
+
+        if item_key not in shop:
+            return await q.answer("Invalid item", show_alert=True)
+
+        if has_item(uid, item_key):
+            return await q.answer("❌ You already own this item", show_alert=True)
+
+        price = shop[item_key]["price"]
+        cash, _ = get_user(uid)
+
+        if cash < price:
+            return await q.answer("❌ Not enough cash", show_alert=True)
+
+        update_cash(uid, cash - price)
+        add_item(uid, item_key)
+
+        await q.answer("✅ Item purchased!")
+        await show_main(update, context)
+
     # ---- BACK ----
     elif q.data == "back":
         await show_main(update, context)
 
-    # ---- FUTURE BUTTONS (duel, shop, etc) ----
     else:
         await q.answer("🚧 Coming soon", show_alert=True)
 
@@ -178,25 +201,19 @@ def main():
 
     app.add_handler(CommandHandler("start", start))
 
-    # CALLBACK HANDLERS (ORDER IS CRITICAL)
-    app.add_handler(
-        CallbackQueryHandler(callbacks, pattern="^(collect|stats|back)$")
-    )
-    app.add_handler(
-        CallbackQueryHandler(callbacks, pattern="^build$")
-    )
-    app.add_handler(
-        CallbackQueryHandler(callbacks, pattern="^up_")
-    )
-    app.add_handler(
-        CallbackQueryHandler(callbacks)
-    )
+    # 🔥 CALLBACK HANDLERS (CORRECT ORDER)
+    app.add_handler(CallbackQueryHandler(callbacks, pattern="^(collect|stats|back)$"))
+    app.add_handler(CallbackQueryHandler(callbacks, pattern="^build$"))
+    app.add_handler(CallbackQueryHandler(callbacks, pattern="^up_"))
+    app.add_handler(CallbackQueryHandler(callbacks, pattern="^shop$"))
+    app.add_handler(CallbackQueryHandler(callbacks, pattern="^buy_"))
+    app.add_handler(CallbackQueryHandler(callbacks))  # fallback LAST
 
     app.add_handler(
         MessageHandler(filters.TEXT & ~filters.COMMAND, text_handler)
     )
 
-    print("✅ Idle City Bot started (ALL BUTTONS WORKING)")
+    print("✅ Idle City Bot started (BUILD + SHOP WORKING)")
     app.run_polling()
 
 if __name__ == "__main__":
