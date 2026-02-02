@@ -43,3 +43,15 @@ def main_menu():
             InlineKeyboardButton("ℹ Help", callback_data="help")
         ]
     ])
+
+def shop_menu():
+    buttons = []
+    for key, item in get_shop_items().items():
+        buttons.append([
+            InlineKeyboardButton(
+                f"{item['label']} – {item['price']}",
+                callback_data=f"buy_{key}"
+            )
+        ])
+    buttons.append([InlineKeyboardButton("⬅ Back", callback_data="back")])
+    return InlineKeyboardMarkup(buttons)
