@@ -27,3 +27,19 @@ def build_menu():
         [InlineKeyboardButton("🚓 Police", callback_data="up_police")],
         [InlineKeyboardButton("⬅ Back", callback_data="back")]
     ])
+
+def main_menu():
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("🏗 Build", callback_data="build"),
+            InlineKeyboardButton("💰 Collect", callback_data="collect")
+        ],
+        [
+            InlineKeyboardButton("⚔ Duel", callback_data="duel"),
+            InlineKeyboardButton("🛒 Shop", callback_data="shop")
+        ],
+        [
+            InlineKeyboardButton("📊 Stats", callback_data="stats"),
+            InlineKeyboardButton("ℹ Help", callback_data="help")
+        ]
+    ])
