@@ -1,19 +1,17 @@
-import json, os
+from config import BASE_INCOME_PER_POP
 
-DB = "db/users.json"
+def calculate_income(population: int, school_level: int) -> int:
+    """
+    Calculate hourly income based on population and school bonus
+    """
+    if population <= 0:
+        return 0
 
-def load():
-    if not os.path.exists(DB):
-        return {}
-    return json.load(open(DB))
+    # Base income
+    income = population * BASE_INCOME_PER_POP
 
-def save(d):
-    json.dump(d, open(DB, "w"), indent=2)
+    # School bonus: +5% per level
+    bonus_multiplier = 1 + (school_level * 0.05)
 
-def collect_tax(uid):
-    data = load()
-    u = data.setdefault(str(uid), {"coins": 0})
-    tax = 20
-    u["coins"] += tax
-    save(data)
-    return tax
+    final_income = int(income * bonus_multiplier)
+    return final_income
