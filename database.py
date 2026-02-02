@@ -61,3 +61,22 @@ def update_cash(uid, amount):
 def update_last_collect(uid, ts):
     cur.execute("UPDATE users SET last_collect=? WHERE user_id=?", (ts, uid))
     conn.commit()
+
+def update_city(uid: int, population: int, happiness: int):
+    cur.execute(
+        "UPDATE city SET population=?, happiness=? WHERE user_id=?",
+        (population, happiness, uid)
+    )
+    conn.commit()
+
+
+def update_buildings(uid: int, houses: int, school: int, hospital: int, police: int):
+    cur.execute(
+        """
+        UPDATE buildings
+        SET houses=?, school=?, hospital=?, police=?
+        WHERE user_id=?
+        """,
+        (houses, school, hospital, police, uid)
+    )
+    conn.commit()
