@@ -19,3 +19,11 @@ def back_menu():
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("⬅ Back", callback_data="back")]
     ])
+def build_menu():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🏠 Houses", callback_data="up_houses")],
+        [InlineKeyboardButton("🎓 School", callback_data="up_school")],
+        [InlineKeyboardButton("🏥 Hospital", callback_data="up_hospital")],
+        [InlineKeyboardButton("🚓 Police", callback_data="up_police")],
+        [InlineKeyboardButton("⬅ Back", callback_data="back")]
+    ])
