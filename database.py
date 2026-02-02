@@ -127,3 +127,38 @@ def update_buildings(
         (houses, school, hospital, police, uid)
     )
     conn.commit()
+
+# ---------------- INVENTORY ----------------
+def init_inventory():
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS inventory (
+        user_id INTEGER,
+        item TEXT,
+        PRIMARY KEY (user_id, item)
+    )
+    """)
+    conn.commit()
+
+
+def has_item(uid: int, item: str) -> bool:
+    cur.execute(
+        "SELECT 1 FROM inventory WHERE user_id=? AND item=?",
+        (uid, item)
+    )
+    return cur.fetchone() is not None
+
+
+def add_item(uid: int, item: str):
+    cur.execute(
+        "INSERT OR IGNORE INTO inventory VALUES (?,?)",
+        (uid, item)
+    )
+    conn.commit()
+
+
+def get_inventory(uid: int):
+    cur.execute(
+        "SELECT item FROM inventory WHERE user_id=?",
+        (uid,)
+    )
+    return [x[0] for x in cur.fetchall()]
